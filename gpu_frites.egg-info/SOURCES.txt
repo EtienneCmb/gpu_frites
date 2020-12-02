@@ -1,0 +1,11 @@
+README.rst
+setup.py
+gpu_frites/__init__.py
+gpu_frites.egg-info/PKG-INFO
+gpu_frites.egg-info/SOURCES.txt
+gpu_frites.egg-info/dependency_links.txt
+gpu_frites.egg-info/requires.txt
+gpu_frites.egg-info/top_level.txt
+gpu_frites/core/__init__.py
+gpu_frites/core/gcmi_1d_gpu.py
+gpu_frites/core/gcmi_nd_gpu.py

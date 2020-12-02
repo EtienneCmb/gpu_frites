@@ -1,0 +1,30 @@
+Metadata-Version: 1.2
+Name: gpu-frites
+Version: 0.0.0
+Summary: Experimental Frites' features
+Home-page: https://github.com/brainets/gpu_frites
+Author: Etienne Combrisson; Ruggero Basanisi; Vinicius Lima; Theophile Przybylak
+Author-email: e.combrisson@gmail.com
+Maintainer: Etienne Combrisson
+License: BSD 3-Clause License
+Download-URL: https://github.com/brainets/gpu_frites/archive/v0.0.0.tar.gz
+Description: ==========
+        GPU Frites
+        ==========
+        
+        GPU implementations of Frites' functions
+        
+        # Installation
+        
+        python setup.py develop
+        
+Keywords: information-theory statistics
+Platform: any
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Intended Audience :: Education
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Scientific/Engineering :: Visualization
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
