@@ -1,11 +1,21 @@
 """GPU implementations of Nd MI functions."""
+import cupy as cp
+import cupyx
+from cupyx.scipy.special import digamma as psi
+
+###############################################################################
+###############################################################################
+#                                    1D
+###############################################################################
+###############################################################################
+
 
 
 def mi_1d_gpu_gg():
     pass
 
 
-def mi_model_1d_gpu_gd():
+def mi_model_1d_gpu_gd(x, y, biascorrect=False, demeaned=False):
     """Mutual information between a Gaussian and a discrete variable in bits.
     This method is based on ANOVA style model comparison.
     I = mi_model_gd(x,y) returns the MI between the (possibly multidimensional)
@@ -32,7 +42,7 @@ def mi_model_1d_gpu_gd():
         raise ValueError("x must be at most 2d")
     if y.ndim > 1:
         raise ValueError("only univariate discrete variables supported")
-    if not np.issubdtype(y.dtype, np.integer):
+    if not cp.issubdtype(y.dtype, cp.integer):
         raise ValueError("y should be an integer array")
 
     nvarx, ntrl = x.shape
@@ -42,7 +52,7 @@ def mi_model_1d_gpu_gd():
         raise ValueError("number of trials do not match")
 
     if not demeaned:
-        x = x - x.mean(axis=1)[:, np.newaxis]
+        x = x - x.mean(axis=1)[:, cp.newaxis]
 
     # class-conditional entropies
     ntrl_y = cp.zeros(len(ym))
@@ -81,8 +91,6 @@ def mi_model_1d_gpu_gd():
 
     # MI in bits
     i = (hunc - cp.sum(w * hcond)) / ln2
-    # Clean GPU memory
-    cp._default_memory_pool.free_all_blocks()
     return i
 
 def cmi_1d_gpu_ggg():

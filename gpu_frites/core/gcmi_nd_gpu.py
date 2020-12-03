@@ -1,6 +1,9 @@
 """GPU implementations of Nd MI functions."""
+import cupy as cp
+import cupyx
+from cupyx.scipy.special import digamma as psi
 
-# I don't know if this should go here
+
 def nd_reshape_gpu(x, mvaxis=None, traxis=-1):
     """Multi-dimentional reshaping.
     This function is used to be sure that an nd array has a correct shape
@@ -34,48 +37,15 @@ def nd_reshape_gpu(x, mvaxis=None, traxis=-1):
     x = cp.moveaxis(x, (mvaxis, traxis), (-2, -1))
 
     return x
-########################################################################################
+
 
 def mi_nd_gpu_gg():
     pass
 
 
-def mi_model_nd_gpu_gd():
-    """Multi-dimentional reshaping.
-    This function is used to be sure that an nd array has a correct shape
-    of (..., mvaxis, traxis).
-    Parameters
-    ----------
-    x : array_like
-        Multi-dimentional array
-    mvaxis : int | None
-        Spatial location of the axis to consider if multi-variate analysis
-        is needed
-    traxis : int | -1
-        Spatial location of the trial axis. By default the last axis is
-        considered
-    Returns
-    -------
-    x_rsh : array_like
-        The reshaped multi-dimentional array of shape (..., mvaxis, traxis)
-    """
-    assert isinstance(traxis, int)
-    traxis = cp.arange(x.ndim)[traxis]
 
-    # Create an empty mvaxis axis
-    if not isinstance(mvaxis, int):
-        x = x[..., cp.newaxis]
-        mvaxis = -1
-    assert isinstance(mvaxis, int)
-    mvaxis = cp.arange(x.ndim)[mvaxis]
-
-    # move the multi-variate and trial axis
-    x = cp.moveaxis(x, (mvaxis, traxis), (-2, -1))
-
-    return x
-
-def mi_model_nd_gd_gpu(x, y, mvaxis=None, traxis=-1, biascorrect=True,
-                   demeaned=False, shape_checking=True):
+def mi_model_nd_gpu_gd(x, y, mvaxis=None, traxis=-1, biascorrect=True,
+                       demeaned=False, shape_checking=True):
     """Multi-dimentional MI between a Gaussian and a discret variables in bits.
     This function is based on ANOVA style model comparison.
     Parameters
@@ -160,14 +130,15 @@ def mi_model_nd_gd_gpu(x, y, mvaxis=None, traxis=-1, biascorrect=True,
 
     # MI in bits
     i = (hunc - cp.einsum('i, ...i', w, hcond)) / ln2
-    # Clean GPU memory
-    cp._default_memory_pool.free_all_blocks()
     return i
 
+
+
 def cmi_nd_gpu_ggg(x, y, z, mvaxis=None, traxis=-1, biascorrect=True,
-               demeaned=False, shape_checking=True):
+                   demeaned=False, shape_checking=True):
     """Multi-dimentional MI between three Gaussian variables in bits.
     This function is based on ANOVA style model comparison.
+
     Parameters
     ----------
     x, y, z : array_like
@@ -256,5 +227,4 @@ def cmi_nd_gpu_ggg(x, y, z, mvaxis=None, traxis=-1, biascorrect=True,
 
     # MI in bits
     i = (hxz + hyz - hxyz - hz) / ln2
-    cp._default_memory_pool.free_all_blocks()
     return i
