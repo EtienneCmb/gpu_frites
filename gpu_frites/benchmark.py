@@ -88,7 +88,7 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
 ###############################################################################
 
 
-def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
+def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     # get cpu / gpu ressources
     _, np = xfrites.utils.get_cupy(target=target)
     if (target == 'cpu') and (dim == '1d'):
