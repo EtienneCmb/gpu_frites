@@ -1,5 +1,40 @@
 """GPU implementations of Nd MI functions."""
 
+# I don't know if this should go here
+def nd_reshape_gpu(x, mvaxis=None, traxis=-1):
+    """Multi-dimentional reshaping.
+    This function is used to be sure that an nd array has a correct shape
+    of (..., mvaxis, traxis).
+    Parameters
+    ----------
+    x : array_like
+        Multi-dimentional array
+    mvaxis : int | None
+        Spatial location of the axis to consider if multi-variate analysis
+        is needed
+    traxis : int | -1
+        Spatial location of the trial axis. By default the last axis is
+        considered
+    Returns
+    -------
+    x_rsh : array_like
+        The reshaped multi-dimentional array of shape (..., mvaxis, traxis)
+    """
+    assert isinstance(traxis, int)
+    traxis = cp.arange(x.ndim)[traxis]
+
+    # Create an empty mvaxis axis
+    if not isinstance(mvaxis, int):
+        x = x[..., cp.newaxis]
+        mvaxis = -1
+    assert isinstance(mvaxis, int)
+    mvaxis = cp.arange(x.ndim)[mvaxis]
+
+    # move the multi-variate and trial axis
+    x = cp.moveaxis(x, (mvaxis, traxis), (-2, -1))
+
+    return x
+########################################################################################
 
 def mi_nd_gpu_gg():
     pass
