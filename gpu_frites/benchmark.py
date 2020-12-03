@@ -75,7 +75,7 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
         if ndims == '1d':
             for n_t in range(a.shape[0]):
                 fcn(a[n_t, ...], b[n_t, ...])
-        if ndims == 'nd':
+        elif ndims == 'nd':
             fcn(a, b, mvaxis=-2, traxis=-1, shape_checking=False)
     fcn_tmt = tmt(_time_loop, n_loops=n_loops)
 
@@ -136,7 +136,7 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
         if ndims == '1d':
             for n_t in range(a.shape[0]):
                 fcn(a[n_t, ...], b)
-        if ndims == 'nd':
+        elif ndims == 'nd':
             fcn(a, b, mvaxis=-2, traxis=-1, shape_checking=False)
     fcn_tmt = tmt(_time_loop, n_loops=n_loops)
 
@@ -147,7 +147,6 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
         for n_t in range(len(n_times)):
             esti[n_m, n_t] = fcn_tmt(x[0:n_t + 1, 0:n_m + 1, :], y)
             pbar.update_with_increment_value(1)
-            pass
 
     esti.attrs['method'] = fcn.__name__
     esti.attrs['target'] = target
@@ -178,5 +177,5 @@ def run_benchmark(save_to=None, n_trials=600, n_loops=100):
         now = datetime.now()
         dt_string = now.strftime("%d_%m_%Y_%Hh_%Mmin_%Ss.nc")
         save_as = os.path.join(save_to, dt_string)
-        save_to.to_netcdf(save_as)
+        bmk.to_netcdf(save_as)
 
