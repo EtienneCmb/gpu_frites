@@ -15,7 +15,7 @@ def mi_1d_gpu_gg():
     pass
 
 
-def mi_model_1d_gpu_gd():
+def mi_model_1d_gpu_gd(x, y, biascorrect=False, demeaned=False):
     """Mutual information between a Gaussian and a discrete variable in bits.
     This method is based on ANOVA style model comparison.
     I = mi_model_gd(x,y) returns the MI between the (possibly multidimensional)

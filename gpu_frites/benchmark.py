@@ -1,4 +1,16 @@
 """Benchmarking CPU and GPU codes."""
+import xarray as xr
+
+# profiling function
+def tmt(method, n_loops=100):
+    def timed(*args, **kw):
+        ts = tst()
+        for n_l in range(n_loops):
+            method(*args, **kw)
+        te = tst()
+        result = (te - ts) / n_loops
+        return result
+    return timed
 
 
 
@@ -31,6 +43,7 @@ def test_mi_1d_gg_equals():
 
 def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     # get cpu / gpu ressources
+    import xfrites
     _, np = xfrites.utils.get_cupy(target=target)
     if (target == 'cpu') and (ndims == '1d'):
         from frites.core import mi_1d_gg
@@ -53,6 +66,7 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     # generate the data
     x = np.random.rand(n_times[-1], n_mv[-1], n_trials)
     y = np.random.rand(n_times[-1], n_mv[-1], n_trials)
+    x, y = np.asarray(x), np.asarray(y)
     
     # function to time
     def _time_loop(a, b):
@@ -90,14 +104,16 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
 
 def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     # get cpu / gpu ressources
-    _, np = xfrites.utils.get_cupy(target=target)
-    if (target == 'cpu') and (dim == '1d'):
+    import xfrites
+    import numpy as np
+    _, cp = xfrites.utils.get_cupy(target=target)
+    if (target == 'cpu') and (ndims == '1d'):
         from frites.core import mi_model_1d_gd
         fcn = mi_model_1d_gd
-    elif (target == 'cpu') and (dim == 'nd'):
+    elif (target == 'cpu') and (ndims == 'nd'):
         from frites.core import mi_model_nd_gd
         fcn = mi_model_nd_gd
-    elif (target == 'gpu') and (dim == '1d'):
+    elif (target == 'gpu') and (ndims == '1d'):
         from gpu_frites.core import mi_model_1d_gpu_gd
         fcn = mi_model_1d_gpu_gd
     elif (target == 'gpu') and (dim == 'nd'):
@@ -110,8 +126,8 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     n_mv = np.arange(1, 20, 1)
     
     # generate the data
-    x = np.random.rand(n_times[-1], n_mv[-1], n_trials)
-    y = np.random.randint(0, 3, size=(n_trials,))
+    x = cp.random.rand(int(n_times[-1]), int(n_mv[-1]), n_trials)
+    y = cp.random.randint(0, 3, size=(n_trials,))
     
     # function to time
     def _time_loop(a, b):
@@ -125,8 +141,8 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     pbar = ProgressBar(range(int(len(n_times) * len(n_mv))), mesg=mesg)
     esti = xr.DataArray(np.zeros((len(n_mv), len(n_times))),
                         dims=('mv', 'times'), coords=(n_mv, n_times))
-    for n_m, m in enumerate(n_mv):
-        for n_t, t in enumerate(n_times):
+    for n_m in range(len(n_mv)):
+        for n_t in range(len(n_times)):
             esti[n_m, n_t] = fcn_tmt(x[0:n_t, 0:n_m, :], y)
             pbar.update_with_increment_value(1)
 
