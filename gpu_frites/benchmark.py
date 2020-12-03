@@ -1,5 +1,6 @@
 """Benchmarking CPU and GPU codes."""
 import xarray as xr
+from mne.utils import ProgressBar
 
 # profiling function
 def tmt(method, n_loops=100):
@@ -116,7 +117,7 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     elif (target == 'gpu') and (ndims == '1d'):
         from gpu_frites.core import mi_model_1d_gpu_gd
         fcn = mi_model_1d_gpu_gd
-    elif (target == 'gpu') and (dim == 'nd'):
+    elif (target == 'gpu') and (ndims == 'nd'):
         from gpu_frites.core import mi_model_nd_gpu_gd
         fcn = mi_model_nd_gpu_gd
     mesg = (f"Profiling I(C; C) (fcn={fcn.__name__}; target={target}; "
@@ -143,8 +144,9 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
                         dims=('mv', 'times'), coords=(n_mv, n_times))
     for n_m in range(len(n_mv)):
         for n_t in range(len(n_times)):
-            esti[n_m, n_t] = fcn_tmt(x[0:n_t, 0:n_m, :], y)
+            esti[n_m, n_t] = fcn_tmt(x[0:n_t + 1, 0:n_m + 1, :], y)
             pbar.update_with_increment_value(1)
+            pass
 
     esti.attrs['method'] = fcn.__name__
     esti.attrs['target'] = target
