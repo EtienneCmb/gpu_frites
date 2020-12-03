@@ -1,6 +1,7 @@
 """Benchmarking CPU and GPU codes."""
 import xarray as xr
 from mne.utils import ProgressBar
+from time import time as tst
 
 # profiling function
 def tmt(method, n_loops=100):
