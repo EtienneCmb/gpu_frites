@@ -11,8 +11,70 @@ from cupyx.scipy.special import digamma as psi
 
 
 
-def mi_1d_gpu_gg():
-    pass
+def mi_1d_gpu_gg(x, y, biascorrect=True, demeaned=False):
+    """Mutual information (MI) between two Gaussian variables in bits.
+
+    This is the GPU variant of the m1_1d_gg function, using CuPy
+
+    I = mi_gg(x,y) returns the MI between two (possibly multidimensional)
+    Gaussian variables, x and y, with bias correction.
+
+    Parameters
+    ----------
+    x, y : array_like
+        Gaussian arrays of shape (n_epochs,) or (n_dimensions, n_epochs)
+    biascorrect : bool | True
+        Specifies whether bias correction should be applied to the estimated MI
+    demeaned : bool | False
+        Specifies whether the input data already has zero mean (true if it has
+        been copula-normalized)
+
+    Returns
+    -------
+    i : float
+        Information shared by x and y (in bits)
+    """
+    x, y = cp.atleast_2d(x), cp.atleast_2d(y)
+    if (x.ndim > 2) or (y.ndim > 2):
+        raise ValueError("x and y must be at most 2d")
+    nvarx, ntrl = x.shape
+    nvary = y.shape[0]
+    nvarxy = nvarx + nvary
+
+    if y.shape[1] != ntrl:
+        raise ValueError("number of trials do not match")
+
+    # joint variable
+    xy = cp.vstack((x, y))
+    if not demeaned:
+        xy = xy - xy.mean(axis=1)[:, cp.newaxis]
+    cxy = cp.dot(xy, xy.T) / float(ntrl - 1)
+    # submatrices of joint covariance
+    cx = cxy[:nvarx, :nvarx]
+    cy = cxy[nvarx:, nvarx:]
+
+    chcxy = cp.linalg.cholesky(cxy)
+    chcx = cp.linalg.cholesky(cx)
+    chcy = cp.linalg.cholesky(cy)
+
+    # entropies in nats
+    # normalizations cancel for mutual information
+    hx = cp.sum(cp.log(cp.diagonal(chcx)))
+    hy = cp.sum(cp.log(cp.diagonal(chcy)))
+    hxy = cp.sum(cp.log(cp.diagonal(chcxy)))
+
+    ln2 = cp.log(2)
+    if biascorrect:
+        psiterms = psi(
+            (ntrl - cp.arange(1, nvarxy + 1)).astype(cp.float) / 2.) / 2.
+        dterm = (ln2 - cp.log(ntrl - 1.)) / 2.
+        hx = hx - nvarx * dterm - psiterms[:nvarx].sum()
+        hy = hy - nvary * dterm - psiterms[:nvary].sum()
+        hxy = hxy - nvarxy * dterm - psiterms[:nvarxy].sum()
+
+    # MI in bits
+    i = (hx + hy - hxy) / ln2
+    return i
 
 
 def mi_model_1d_gpu_gd(x, y, biascorrect=False, demeaned=False):
