@@ -63,12 +63,12 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
 
     n_times = np.arange(1500, 4000, 100)
     n_mv = np.arange(1, 20, 1)
-    
+
     # generate the data
     x = np.random.rand(n_times[-1], n_mv[-1], n_trials)
     y = np.random.rand(n_times[-1], n_mv[-1], n_trials)
     x, y = np.asarray(x), np.asarray(y)
-    
+
     # function to time
     def _time_loop(a, b):
         if ndims == '1d':
@@ -77,7 +77,7 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
         if ndims == 'nd':
             fcn(a, b, mvaxis=-2, traxis=-1, shape_checking=False)
     fcn_tmt = tmt(_time_loop, n_loops=n_loops)
-    
+
     pbar = ProgressBar(range(int(len(n_times) * len(n_mv))), mesg=mesg)
     esti = xr.DataArray(np.zeros((len(n_mv), len(n_times))),
                         dims=('mv', 'times'), coords=(n_mv, n_times))
@@ -91,7 +91,7 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     esti.attrs['ndims'] = ndims
     esti.attrs['n_loops'] = n_loops
     esti.attrs['n_trials'] = n_trials
-    
+
     return esti
 
 
@@ -125,11 +125,11 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
 
     n_times = np.arange(1500, 4000, 100)
     n_mv = np.arange(1, 20, 1)
-    
+
     # generate the data
     x = cp.random.rand(int(n_times[-1]), int(n_mv[-1]), n_trials)
     y = cp.random.randint(0, 3, size=(n_trials,))
-    
+
     # function to time
     def _time_loop(a, b):
         if ndims == '1d':
@@ -138,7 +138,7 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
         if ndims == 'nd':
             fcn(a, b, mvaxis=-2, traxis=-1, shape_checking=False)
     fcn_tmt = tmt(_time_loop, n_loops=n_loops)
-    
+
     pbar = ProgressBar(range(int(len(n_times) * len(n_mv))), mesg=mesg)
     esti = xr.DataArray(np.zeros((len(n_mv), len(n_times))),
                         dims=('mv', 'times'), coords=(n_mv, n_times))
@@ -153,5 +153,29 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     esti.attrs['ndims'] = ndims
     esti.attrs['n_loops'] = n_loops
     esti.attrs['n_trials'] = n_trials
-    
+
     return esti
+
+
+def run_benchmark(save_to=None, n_trials=600, n_loops=100):
+    bmk = {}
+    # benchmarking I(C, C)
+    # benchmarking I(C, D)
+    for target in ['cpu', 'gpu']:
+        for ndim in ['1d', 'nd']:
+            aux = test_mi_gd_timing(target=target, ndims=ndim, n_loops=n_loops,
+                                    n_trials=n_trials)
+            bmk[f'gd_{target}_{ndim}'] = aux
+    # benchmarking I(C, C | C)
+
+    # final xarray conversion
+    bmk = xr.Dataset(bmk)
+    if isinstance(save_to, str):
+        from datetime import datetime
+        import os
+
+        now = datetime.now()
+        dt_string = now.strftime("%d_%m_%Y_%Hh_%Mmin_%Ss.nc")
+        save_as = os.path.join(save_to, dt_string)
+        save_to.to_netcdf(save_as)
+
