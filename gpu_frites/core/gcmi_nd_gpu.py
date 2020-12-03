@@ -44,8 +44,8 @@ def mi_nd_gpu_gg():
 
 
 
-def mi_model_nd_gd_gpu(x, y, mvaxis=None, traxis=-1, biascorrect=True,
-                   demeaned=False, shape_checking=True):
+def mi_model_nd_gpu_gd(x, y, mvaxis=None, traxis=-1, biascorrect=True,
+                       demeaned=False, shape_checking=True):
     """Multi-dimentional MI between a Gaussian and a discret variables in bits.
     This function is based on ANOVA style model comparison.
     Parameters
