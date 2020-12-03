@@ -1,6 +1,7 @@
 """GPU implementations of Nd MI functions."""
 import cupy as cp
-
+import cupyx
+from cupyx.scipy.special import digamma as psi
 
 ###############################################################################
 ###############################################################################
@@ -14,7 +15,7 @@ def mi_1d_gpu_gg():
     pass
 
 
-def mi_model_1d_gpu_gd(x, y, biascorrect=False, demeaned=False):
+def mi_model_1d_gpu_gd():
     """Mutual information between a Gaussian and a discrete variable in bits.
     This method is based on ANOVA style model comparison.
     I = mi_model_gd(x,y) returns the MI between the (possibly multidimensional)
@@ -35,6 +36,7 @@ def mi_model_1d_gpu_gd(x, y, biascorrect=False, demeaned=False):
         Information shared by x and y (in bits)
     """
     # Converting to cupy array
+    #x, y = cp.array(x), cp.array(y)
     x, y = cp.atleast_2d(x), cp.squeeze(y)
     if x.ndim > 2:
         raise ValueError("x must be at most 2d")
@@ -89,9 +91,7 @@ def mi_model_1d_gpu_gd(x, y, biascorrect=False, demeaned=False):
 
     # MI in bits
     i = (hunc - cp.sum(w * hcond)) / ln2
-
     return i
-
 
 def cmi_1d_gpu_ggg():
     pass
