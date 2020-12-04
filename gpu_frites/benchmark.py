@@ -6,6 +6,9 @@ from time import time as tst
 # profiling function
 def tmt(method, n_loops=100):
     def timed(*args, **kw):
+        # dry run
+        method(*args, **kw)
+        # timing run
         ts = tst()
         for n_l in range(n_loops):
             method(*args, **kw)
