@@ -1,4 +1,5 @@
 """GPU implementations of Nd MI functions."""
+import numpy as np
 import cupy as cp
 import cupyx
 from cupyx.scipy.special import digamma as psi
@@ -34,13 +35,100 @@ def nd_reshape_gpu(x, mvaxis=None, traxis=-1):
     mvaxis = cp.arange(x.ndim)[mvaxis]
 
     # move the multi-variate and trial axis
-    x = cp.moveaxis(x, (mvaxis, traxis), (-2, -1))
+    x = cp.moveaxis(x, (int(mvaxis), int(traxis)), (-2, -1))
 
     return x
 
+def nd_shape_checking(x, y, mvaxis, traxis):
+    """Check that the shape between two ndarray is consitent.
 
-def mi_nd_gpu_gg():
-    pass
+    x.shape = (nx_1, ..., n_xn, x_mvaxis, traxis)
+    y.shape = (nx_1, ..., n_xn, y_mvaxis, traxis)
+    """
+    assert x.ndim == y.ndim
+    dims = np.delete(np.arange(x.ndim), -2)
+    assert all([x.shape[k] == y.shape[k] for k in dims])
+
+
+def mi_nd_gpu_gg(x, y, mvaxis=None, traxis=-1, biascorrect=True, demeaned=False,
+             shape_checking=True):
+    """Multi-dimentional MI between two Gaussian variables in bits.
+
+    Parameters
+    ----------
+    x, y : array_like
+        Arrays to consider for computing the Mutual Information. The two input
+        variables x and y should have the same shape except on the mvaxis
+        (if needed).
+    mvaxis : int | None
+        Spatial location of the axis to consider if multi-variate analysis
+        is needed
+    traxis : int | -1
+        Spatial location of the trial axis. By default the last axis is
+        considered
+    biascorrect : bool | True
+        Specifies whether bias correction should be applied to the estimated MI
+    demeaned : bool | False
+        Specifies whether the input data already has zero mean (true if it has
+        been copula-normalized)
+    shape_checking : bool | True
+        Perform a reshape and check that x and y shapes are consistents. For
+        high performances and to avoid extensive memory usage, it's better to
+        already have x and y with a shape of (..., mvaxis, traxis) and to set
+        this parameter to False
+
+    Returns
+    -------
+    mi : array_like
+        The mutual information with the same shape as x and y, without the
+        mvaxis and traxis
+    """
+    # Multi-dimentional shape checking
+    if shape_checking:
+        x = nd_reshape_gpu(x, mvaxis=mvaxis, traxis=traxis)
+        y = nd_reshape_gpu(y, mvaxis=mvaxis, traxis=traxis)
+        nd_shape_checking(x, y, mvaxis, traxis)
+
+    # x.shape (..., x_mvaxis, traxis)
+    # y.shape (..., y_mvaxis, traxis)
+    ntrl = x.shape[-1]
+    nvarx, nvary = x.shape[-2], y.shape[-2]
+    nvarxy = nvarx + nvary
+
+    # joint variable along the mvaxis
+    xy = cp.concatenate((x, y), axis=-2)
+    if not demeaned:
+        xy -= xy.mean(axis=-1, keepdims=True)
+    cxy = cp.einsum('...ij, ...kj->...ik', xy, xy)
+    cxy /= float(ntrl - 1.)
+
+    # submatrices of joint covariance
+    cx = cxy[..., :nvarx, :nvarx]
+    cy = cxy[..., nvarx:, nvarx:]
+
+    # Cholesky decomposition
+    chcxy = cp.linalg.cholesky(cxy)
+    chcx = cp.linalg.cholesky(cx)
+    chcy = cp.linalg.cholesky(cy)
+
+    # entropies in nats
+    # normalizations cancel for mutual information
+    hx = cp.log(cp.einsum('...ii->...i', chcx)).sum(-1)
+    hy = cp.log(cp.einsum('...ii->...i', chcy)).sum(-1)
+    hxy = cp.log(cp.einsum('...ii->...i', chcxy)).sum(-1)
+
+    ln2 = cp.log(2)
+    if biascorrect:
+        vec = cp.arange(1, nvarxy + 1)
+        psiterms = psi((ntrl - vec).astype(cp.float) / 2.0) / 2.0
+        dterm = (ln2 - cp.log(ntrl - 1.0)) / 2.0
+        hx = hx - nvarx * dterm - psiterms[:nvarx].sum()
+        hy = hy - nvary * dterm - psiterms[:nvary].sum()
+        hxy = hxy - nvarxy * dterm - psiterms[:nvarxy].sum()
+
+    # MI in bits
+    i = (hx + hy - hxy) / ln2
+    return i
 
 
 
