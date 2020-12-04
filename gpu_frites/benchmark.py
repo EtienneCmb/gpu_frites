@@ -249,3 +249,5 @@ def run_benchmark(save_to=None, n_trials=600, n_loops=100):
         save_as = os.path.join(save_to, dt_string)
         bmk.to_netcdf(save_as)
 
+    return bmk
+
