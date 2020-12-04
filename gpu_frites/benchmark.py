@@ -46,7 +46,8 @@ def test_mi_1d_gg_equals():
 def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     # get cpu / gpu ressources
     import xfrites
-    _, np = xfrites.utils.get_cupy(target=target)
+    import numpy as np
+    _, cp = xfrites.utils.get_cupy(target=target)
     if (target == 'cpu') and (ndims == '1d'):
         from frites.core import mi_1d_gg
         fcn = mi_1d_gg
@@ -66,9 +67,8 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     n_mv = np.arange(1, 20, 1)
 
     # generate the data
-    x = np.random.rand(n_times[-1], n_mv[-1], n_trials)
-    y = np.random.rand(n_times[-1], n_mv[-1], n_trials)
-    x, y = np.asarray(x), np.asarray(y)
+    x = cp.random.rand(int(n_times[-1]), int(n_mv[-1]), n_trials)
+    y = cp.random.rand(int(n_times[-1]), int(n_mv[-1]), n_trials)
 
     # function to time
     def _time_loop(a, b):
@@ -82,9 +82,10 @@ def test_mi_gg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     pbar = ProgressBar(range(int(len(n_times) * len(n_mv))), mesg=mesg)
     esti = xr.DataArray(np.zeros((len(n_mv), len(n_times))),
                         dims=('mv', 'times'), coords=(n_mv, n_times))
-    for n_m, m in enumerate(n_mv):
-        for n_t, t in enumerate(n_times):
-            esti[n_m, n_t] = fcn_tmt(x[0:n_t, 0:n_m, :], y[0:n_t, 0:n_m, :])
+    for n_m in range(len(n_mv)):
+        for n_t in range(len(n_times)):
+            esti[n_m, n_t] = fcn_tmt(
+                x[0:n_t + 1, 0:n_m + 1, :], y[0:n_t + 1, 0:n_m + 1, :])
             pbar.update_with_increment_value(1)
 
     esti.attrs['method'] = fcn.__name__
@@ -121,7 +122,7 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     elif (target == 'gpu') and (ndims == 'nd'):
         from gpu_frites.core import mi_model_nd_gpu_gd
         fcn = mi_model_nd_gpu_gd
-    mesg = (f"Profiling I(C; C) (fcn={fcn.__name__}; target={target}; "
+    mesg = (f"Profiling I(C; D) (fcn={fcn.__name__}; target={target}; "
             f"ndims={ndims})")
 
     n_times = np.arange(1500, 4000, 100)
@@ -157,19 +158,85 @@ def test_mi_gd_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
     return esti
 
 
+
+###############################################################################
+###############################################################################
+#                               I(C; D)
+###############################################################################
+###############################################################################
+
+
+def test_mi_ggg_timing(target='cpu', ndims='1d', n_loops=100, n_trials=600):
+    # get cpu / gpu ressources
+    import xfrites
+    import numpy as np
+    _, cp = xfrites.utils.get_cupy(target=target)
+    if (target == 'cpu') and (ndims == '1d'):
+        from frites.core import cmi_1d_ggg
+        fcn = cmi_1d_ggg
+    elif (target == 'cpu') and (ndims == 'nd'):
+        from frites.core import cmi_nd_ggg
+        fcn = cmi_nd_ggg
+    elif (target == 'gpu') and (ndims == '1d'):
+        from gpu_frites.core import cmi_1d_gpu_ggg
+        fcn = cmi_1d_gpu_ggg
+    elif (target == 'gpu') and (ndims == 'nd'):
+        from gpu_frites.core import cmi_nd_gpu_ggg
+        fcn = cmi_nd_gpu_ggg
+    mesg = (f"Profiling I(C; C | C) (fcn={fcn.__name__}; target={target}; "
+            f"ndims={ndims})")
+
+    n_times = np.arange(1500, 4000, 100)
+    n_mv = np.arange(1, 20, 1)
+
+    # generate the data
+    x = cp.random.rand(int(n_times[-1]), int(n_mv[-1]), n_trials)
+    y = cp.random.rand(int(n_times[-1]), int(n_mv[-1]), n_trials)
+    z = cp.random.rand(int(n_times[-1]), int(n_mv[-1]), n_trials)
+
+    # function to time
+    def _time_loop(a, b, c):
+        if ndims == '1d':
+            for n_t in range(a.shape[0]):
+                fcn(a[n_t, ...], b[n_t, ...], c[n_t, ...])
+        elif ndims == 'nd':
+            fcn(a, b, c, mvaxis=-2, traxis=-1, shape_checking=False)
+    fcn_tmt = tmt(_time_loop, n_loops=n_loops)
+
+    pbar = ProgressBar(range(int(len(n_times) * len(n_mv))), mesg=mesg)
+    esti = xr.DataArray(np.zeros((len(n_mv), len(n_times))),
+                        dims=('mv', 'times'), coords=(n_mv, n_times))
+    for n_m in range(len(n_mv)):
+        for n_t in range(len(n_times)):
+            esti[n_m, n_t] = fcn_tmt(
+                x[0:n_t + 1, 0:n_m + 1, :], y[0:n_t + 1, 0:n_m + 1, :],
+                z[0:n_t + 1, 0:n_m + 1, :])
+            pbar.update_with_increment_value(1)
+
+    esti.attrs['method'] = fcn.__name__
+    esti.attrs['target'] = target
+    esti.attrs['ndims'] = ndims
+    esti.attrs['n_loops'] = n_loops
+    esti.attrs['n_trials'] = n_trials
+
+    return esti
+
+
+
+
 def run_benchmark(save_to=None, n_trials=600, n_loops=100):
     bmk = {}
-    # benchmarking I(C, C)
-    # benchmarking I(C, D)
+    kw = dict(n_loops=n_loops, n_trials=n_trials)
     for target in ['cpu', 'gpu']:
         for ndim in ['1d', 'nd']:
-            aux = test_mi_gd_timing(target=target, ndims=ndim, n_loops=n_loops,
-                                    n_trials=n_trials)
-            bmk[f'gd_{target}_{ndim}'] = aux
-    # benchmarking I(C, C | C)
+            kw_b ={'target': target, 'ndims': ndim, **kw}
+            bmk[f'gg_{target}_{ndim}'] = test_mi_gg_timing(**kw_b)
+            bmk[f'gd_{target}_{ndim}'] = test_mi_gd_timing(**kw_b)
+            bmk[f'ggg_{target}_{ndim}'] = test_mi_ggg_timing(**kw_b)
 
     # final xarray conversion
     bmk = xr.Dataset(bmk)
+
     if isinstance(save_to, str):
         from datetime import datetime
         import os

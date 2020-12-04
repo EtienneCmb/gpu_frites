@@ -93,5 +93,80 @@ def mi_model_1d_gpu_gd(x, y, biascorrect=False, demeaned=False):
     i = (hunc - cp.sum(w * hcond)) / ln2
     return i
 
-def cmi_1d_gpu_ggg():
-    pass
+
+def cmi_1d_gpu_ggg(x, y, z, biascorrect=True, demeaned=False):
+    """Conditional MI between two Gaussian variables conditioned on a third.
+
+    I = cmi_ggg(x,y,z) returns the CMI between two (possibly multidimensional)
+    Gaussian variables, x and y, conditioned on a third, z, with bias
+    correction.
+
+    Parameters
+    ----------
+    x, y, z : array_like
+        Gaussians arrays of shape (n_epochs,) or (n_dimensions, n_epochs).
+    biascorrect : bool | True
+        Specifies whether bias correction should be applied to the estimated MI
+    demeaned : bool | False
+        Specifies whether the input data already has zero mean (true if it has
+        been copula-normalized)
+
+    Returns
+    -------
+    i : float
+        Information shared by x and y conditioned by z (in bits)
+    """
+    x, y, z = cp.atleast_2d(x), cp.atleast_2d(y), cp.atleast_2d(z)
+    if x.ndim > 2 or y.ndim > 2 or z.ndim > 2:
+        raise ValueError("x, y and z must be at most 2d")
+    ntrl = x.shape[1]
+    nvarx = x.shape[0]
+    nvary = y.shape[0]
+    nvarz = z.shape[0]
+    nvaryz = nvary + nvarz
+    nvarxy = nvarx + nvary
+    nvarxz = nvarx + nvarz
+    nvarxyz = nvarx + nvaryz
+
+    if y.shape[1] != ntrl or z.shape[1] != ntrl:
+        raise ValueError("number of trials do not match")
+
+    # joint variable
+    xyz = cp.vstack((x, y, z))
+    if not demeaned:
+        xyz = xyz - xyz.mean(axis=1)[:, cp.newaxis]
+    cxyz = cp.dot(xyz, xyz.T) / float(ntrl - 1)
+    # submatrices of joint covariance
+    cz = cxyz[nvarxy:, nvarxy:]
+    cyz = cxyz[nvarx:, nvarx:]
+    cxz = cp.zeros((nvarxz, nvarxz))
+    cxz[:nvarx, :nvarx] = cxyz[:nvarx, :nvarx]
+    cxz[:nvarx, nvarx:] = cxyz[:nvarx, nvarxy:]
+    cxz[nvarx:, :nvarx] = cxyz[nvarxy:, :nvarx]
+    cxz[nvarx:, nvarx:] = cxyz[nvarxy:, nvarxy:]
+
+    chcz = cp.linalg.cholesky(cz)
+    chcxz = cp.linalg.cholesky(cxz)
+    chcyz = cp.linalg.cholesky(cyz)
+    chcxyz = cp.linalg.cholesky(cxyz)
+
+    # entropies in nats
+    # normalizations cancel for cmi
+    hz = cp.sum(cp.log(cp.diagonal(chcz)))
+    hxz = cp.sum(cp.log(cp.diagonal(chcxz)))
+    hyz = cp.sum(cp.log(cp.diagonal(chcyz)))
+    hxyz = cp.sum(cp.log(cp.diagonal(chcxyz)))
+
+    ln2 = cp.log(2)
+    if biascorrect:
+        psiterms = psi(
+            (ntrl - cp.arange(1, nvarxyz + 1)).astype(cp.float) / 2.) / 2.
+        dterm = (ln2 - cp.log(ntrl - 1.)) / 2.
+        hz = hz - nvarz * dterm - psiterms[:nvarz].sum()
+        hxz = hxz - nvarxz * dterm - psiterms[:nvarxz].sum()
+        hyz = hyz - nvaryz * dterm - psiterms[:nvaryz].sum()
+        hxyz = hxyz - nvarxyz * dterm - psiterms[:nvarxyz].sum()
+
+    # MI in bits
+    i = (hxz + hyz - hxyz - hz) / ln2
+    return i
